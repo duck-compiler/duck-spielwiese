@@ -13,3 +13,5 @@ cargo install --path .
 ```
 
 This will install dargo onto your system.
+
+test
