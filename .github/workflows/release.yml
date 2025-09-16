@@ -1,0 +1,166 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: nightly-2025-07-05
+        components: rustfmt, clippy
+
+    - name: Cache cargo registry
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-
+
+    - name: Extract version from tag
+      id: get_version
+      run: |
+        VERSION=${GITHUB_REF#refs/tags/v}
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "Release version: $VERSION"
+
+    - name: Build for Linux (x86_64)
+      run: cargo build --release --target x86_64-unknown-linux-gnu
+
+    - name: Build for Windows (x86_64)
+      run: |
+        rustup target add x86_64-pc-windows-gnu
+        cargo build --release --target x86_64-pc-windows-gnu
+
+    - name: Build for macOS (x86_64)
+      run: |
+        rustup target add x86_64-apple-darwin
+        cargo build --release --target x86_64-apple-darwin
+
+    - name: Build for macOS (ARM64)
+      run: |
+        rustup target add aarch64-apple-darwin
+        cargo build --release --target aarch64-apple-darwin
+
+    - name: Build for Linux (ARM64)
+      run: |
+        rustup target add aarch64-unknown-linux-gnu
+        cargo build --release --target aarch64-unknown-linux-gnu
+
+    - name: Build for Linux (ARMv7)
+      run: |
+        rustup target add armv7-unknown-linux-gnueabihf
+        cargo build --release --target armv7-unknown-linux-gnueabihf
+
+    - name: Prepare release assets
+      run: |
+        mkdir -p release-assets
+        
+        # Copy Linux x86_64 binary
+        cp target/x86_64-unknown-linux-gnu/release/dargo release-assets/dargo-linux-x86_64
+        chmod +x release-assets/dargo-linux-x86_64
+        
+        # Copy Windows x86_64 binary
+        cp target/x86_64-pc-windows-gnu/release/dargo.exe release-assets/dargo-windows-x86_64.exe
+        
+        # Copy macOS x86_64 binary
+        cp target/x86_64-apple-darwin/release/dargo release-assets/dargo-macos-x86_64
+        chmod +x release-assets/dargo-macos-x86_64
+        
+        # Copy macOS ARM64 binary
+        cp target/aarch64-apple-darwin/release/dargo release-assets/dargo-macos-aarch64
+        chmod +x release-assets/dargo-macos-aarch64
+        
+        # Copy Linux ARM64 binary
+        cp target/aarch64-unknown-linux-gnu/release/dargo release-assets/dargo-linux-aarch64
+        chmod +x release-assets/dargo-linux-aarch64
+        
+        # Copy Linux ARMv7 binary
+        cp target/armv7-unknown-linux-gnueabihf/release/dargo release-assets/dargo-linux-armv7
+        chmod +x release-assets/dargo-linux-armv7
+
+    - name: Create checksums
+      run: |
+        cd release-assets
+        for file in *; do
+          sha256sum "$file" > "${file}.sha256"
+        done
+        cd ..
+
+    - name: Create release archive
+      run: |
+        cd release-assets
+        tar -czf ../dargo-${{ steps.get_version.outputs.version }}-release.tar.gz *
+        cd ..
+
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ github.ref_name }}
+        name: Release ${{ steps.get_version.outputs.version }}
+        body: |
+          ## Dargo ${{ steps.get_version.outputs.version }}
+          
+          ### Downloads
+          
+          **Linux:**
+          - [dargo-linux-x86_64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/dargo-linux-x86_64) ([checksum](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/dargo-linux-x86_64.sha256))
+          - [dargo-linux-aarch64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/dargo-linux-aarch64) ([checksum](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/dargo-linux-aarch64.sha256))
+          - [dargo-linux-armv7](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/dargo-linux-armv7) ([checksum](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/dargo-linux-armv7.sha256))
+          
+          **macOS:**
+          - [dargo-macos-x86_64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/dargo-macos-x86_64) ([checksum](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/dargo-macos-x86_64.sha256))
+          - [dargo-macos-aarch64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/dargo-macos-aarch64) ([checksum](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/dargo-macos-aarch64.sha256))
+          
+          **Windows:**
+          - [dargo-windows-x86_64.exe](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/dargo-windows-x86_64.exe) ([checksum](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/dargo-windows-x86_64.exe.sha256))
+          
+          **All platforms:**
+          - [dargo-${{ steps.get_version.outputs.version }}-release.tar.gz](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/dargo-${{ steps.get_version.outputs.version }}-release.tar.gz)
+          
+          ### Installation
+          
+          Download the appropriate binary for your platform and make it executable:
+          
+          ```bash
+          # Linux/macOS
+          chmod +x dargo-<platform>
+          sudo mv dargo-<platform> /usr/local/bin/dargo
+          
+          # Windows
+          # Move dargo-windows-x86_64.exe to a directory in your PATH and rename to dargo.exe
+          ```
+          
+          ### Verification
+          
+          Verify the integrity of your download using the provided checksums:
+          
+          ```bash
+          sha256sum -c dargo-<platform>.sha256
+          ```
+        files: |
+          release-assets/*
+          dargo-${{ steps.get_version.outputs.version }}-release.tar.gz
+        draft: false
+        prerelease: false
