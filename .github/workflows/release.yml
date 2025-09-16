@@ -51,8 +51,8 @@ jobs:
     - name: Build for Linux (x86_64)
       run: cross build --release --target x86_64-unknown-linux-gnu
 
-    - name: Build for Windows (x86_64)
-      run: cross build --release --target x86_64-pc-windows-gnu
+    # - name: Build for Windows (x86_64)
+    #   run: cross build --release --target x86_64-pc-windows-gnu
 
     - name: Build for macOS (x86_64)
       run: cross build --release --target x86_64-apple-darwin
@@ -75,7 +75,7 @@ jobs:
         chmod +x release-assets/dargo-linux-x86_64
         
         # Copy Windows x86_64 binary
-        cp target/x86_64-pc-windows-gnu/release/dargo.exe release-assets/dargo-windows-x86_64.exe
+        # cp target/x86_64-pc-windows-gnu/release/dargo.exe release-assets/dargo-windows-x86_64.exe
         
         # Copy macOS x86_64 binary
         cp target/x86_64-apple-darwin/release/dargo release-assets/dargo-macos-x86_64
@@ -127,7 +127,7 @@ jobs:
           - [dargo-macos-aarch64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/dargo-macos-aarch64) ([checksum](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/dargo-macos-aarch64.sha256))
           
           **Windows:**
-          - [dargo-windows-x86_64.exe](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/dargo-windows-x86_64.exe) ([checksum](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/dargo-windows-x86_64.exe.sha256))
+          - Windows builds are temporarily disabled
           
           **All platforms:**
           - [dargo-${{ steps.get_version.outputs.version }}-release.tar.gz](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/dargo-${{ steps.get_version.outputs.version }}-release.tar.gz)
