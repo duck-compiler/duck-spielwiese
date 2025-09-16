@@ -27,6 +27,9 @@ jobs:
         toolchain: nightly-2025-07-05
         components: rustfmt, clippy
 
+    - name: Install Cross
+      run: cargo install cross --git https://github.com/cross-rs/cross
+
     - name: Cache cargo registry
       uses: actions/cache@v4
       with:
@@ -46,32 +49,22 @@ jobs:
         echo "Release version: $VERSION"
 
     - name: Build for Linux (x86_64)
-      run: cargo build --release --target x86_64-unknown-linux-gnu
+      run: cross build --release --target x86_64-unknown-linux-gnu
 
     - name: Build for Windows (x86_64)
-      run: |
-        rustup target add x86_64-pc-windows-gnu
-        cargo build --release --target x86_64-pc-windows-gnu
+      run: cross build --release --target x86_64-pc-windows-gnu
 
     - name: Build for macOS (x86_64)
-      run: |
-        rustup target add x86_64-apple-darwin
-        cargo build --release --target x86_64-apple-darwin
+      run: cross build --release --target x86_64-apple-darwin
 
     - name: Build for macOS (ARM64)
-      run: |
-        rustup target add aarch64-apple-darwin
-        cargo build --release --target aarch64-apple-darwin
+      run: cross build --release --target aarch64-apple-darwin
 
     - name: Build for Linux (ARM64)
-      run: |
-        rustup target add aarch64-unknown-linux-gnu
-        cargo build --release --target aarch64-unknown-linux-gnu
+      run: cross build --release --target aarch64-unknown-linux-gnu
 
     - name: Build for Linux (ARMv7)
-      run: |
-        rustup target add armv7-unknown-linux-gnueabihf
-        cargo build --release --target armv7-unknown-linux-gnueabihf
+      run: cross build --release --target armv7-unknown-linux-gnueabihf
 
     - name: Prepare release assets
       run: |
