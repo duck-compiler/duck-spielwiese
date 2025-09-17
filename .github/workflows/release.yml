@@ -11,14 +11,13 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build-linux:
+  build-linux-x86_64:
     runs-on: ubuntu-latest
     permissions:
       contents: write
       packages: write
     outputs:
       version: ${{ steps.get_version.outputs.version }}
-    
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -30,14 +29,6 @@ jobs:
       with:
         toolchain: nightly-2025-07-05
         components: rustfmt, clippy
-
-    - name: Install cross-compilation toolchains
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y gcc-aarch64-linux-gnu gcc-arm-linux-gnueabihf
-        rustup target add x86_64-unknown-linux-gnu
-        rustup target add aarch64-unknown-linux-gnu
-        rustup target add armv7-unknown-linux-gnueabihf
 
     - name: Cache cargo registry
       uses: actions/cache@v4
@@ -64,15 +55,45 @@ jobs:
     - name: Build for Linux (x86_64)
       run: cargo build --release --target x86_64-unknown-linux-gnu
 
-    # - name: Build for Windows (x86_64)
-    #   run: cargo build --release --target x86_64-pc-windows-gnu
+    - name: Upload Linux x86_64 artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: linux-x86_64
+        path: target/x86_64-unknown-linux-gnu/release/dargo
 
-    # macOS builds require macOS runners - commenting out for now
-    # - name: Build for macOS (x86_64)
-    #   run: cargo build --release --target x86_64-apple-darwin
+  build-linux-aarch64:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
 
-    # - name: Build for macOS (ARM64)
-    #   run: cargo build --release --target aarch64-apple-darwin
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: nightly-2025-07-05
+        components: rustfmt, clippy
+
+    - name: Install cross-compilation toolchain
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y gcc-aarch64-linux-gnu
+        rustup target add aarch64-unknown-linux-gnu
+
+    - name: Cache cargo registry
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-
 
     - name: Build for Linux (ARM64)
       run: |
@@ -81,6 +102,46 @@ jobs:
         export AR_aarch64_unknown_linux_gnu=aarch64-linux-gnu-ar
         cargo build --release --target aarch64-unknown-linux-gnu
 
+    - name: Upload Linux ARM64 artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: linux-aarch64
+        path: target/aarch64-unknown-linux-gnu/release/dargo
+
+  build-linux-armv7:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: nightly-2025-07-05
+        components: rustfmt, clippy
+
+    - name: Install cross-compilation toolchain
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y gcc-arm-linux-gnueabihf
+        rustup target add armv7-unknown-linux-gnueabihf
+
+    - name: Cache cargo registry
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-
+
     - name: Build for Linux (ARMv7)
       run: |
         export CC_armv7_unknown_linux_gnueabihf=arm-linux-gnueabihf-gcc
@@ -88,14 +149,11 @@ jobs:
         export AR_armv7_unknown_linux_gnueabihf=arm-linux-gnueabihf-ar
         cargo build --release --target armv7-unknown-linux-gnueabihf
 
-    - name: Upload Linux artifacts
+    - name: Upload Linux ARMv7 artifact
       uses: actions/upload-artifact@v4
       with:
-        name: linux-binaries
-        path: |
-          target/x86_64-unknown-linux-gnu/release/dargo
-          target/aarch64-unknown-linux-gnu/release/dargo
-          target/armv7-unknown-linux-gnueabihf/release/dargo
+        name: linux-armv7
+        path: target/armv7-unknown-linux-gnueabihf/release/dargo
 
   build-macos:
     runs-on: macos-15
@@ -199,19 +257,19 @@ jobs:
         path: target/x86_64-pc-windows-msvc/release/dargo.exe
 
   debug-build:
-    needs: [build-linux, build-macos, build-windows]
+    needs: [build-linux-x86_64, build-linux-aarch64, build-linux-armv7, build-macos, build-windows]
     runs-on: ubuntu-latest
     if: ${{ !startsWith(github.ref, 'refs/tags/') }}
     steps:
     - name: Debug Build Status
       run: |
         echo "✅ All builds completed successfully!"
-        echo "Version: ${{ needs.build-linux.outputs.version }}"
+        echo "Version: ${{ needs.build-linux-x86_64.outputs.version }}"
         echo "This was a debug build triggered by push to main branch"
         echo "To create a release, push a tag like 'v1.0.0'"
 
   create-release:
-    needs: [build-linux, build-macos, build-windows]
+    needs: [build-linux-x86_64, build-linux-aarch64, build-linux-armv7, build-macos, build-windows]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     permissions:
@@ -233,13 +291,13 @@ jobs:
         mkdir -p release-assets
         
         # Copy Linux binaries
-        cp artifacts/linux-binaries/dargo release-assets/dargo-linux-x86_64
+        cp artifacts/linux-x86_64/dargo release-assets/dargo-linux-x86_64
         chmod +x release-assets/dargo-linux-x86_64
         
-        cp artifacts/linux-binaries/dargo release-assets/dargo-linux-aarch64
+        cp artifacts/linux-aarch64/dargo release-assets/dargo-linux-aarch64
         chmod +x release-assets/dargo-linux-aarch64
         
-        cp artifacts/linux-binaries/dargo release-assets/dargo-linux-armv7
+        cp artifacts/linux-armv7/dargo release-assets/dargo-linux-armv7
         chmod +x release-assets/dargo-linux-armv7
         
         # Copy macOS binaries
@@ -263,16 +321,16 @@ jobs:
     - name: Create release archive
       run: |
         cd release-assets
-        tar -czf ../dargo-${{ needs.build-linux.outputs.version }}-release.tar.gz *
+        tar -czf ../dargo-${{ needs.build-linux-x86_64.outputs.version }}-release.tar.gz *
         cd ..
 
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v1
       with:
         tag_name: ${{ github.ref_name }}
-        name: Release ${{ needs.build-linux.outputs.version }}
+        name: Release ${{ needs.build-linux-x86_64.outputs.version }}
         body: |
-          ## Dargo ${{ needs.build-linux.outputs.version }}
+          ## Dargo ${{ needs.build-linux-x86_64.outputs.version }}
           
           ### Downloads
           
@@ -289,7 +347,7 @@ jobs:
           - [dargo-windows-x86_64.exe](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/dargo-windows-x86_64.exe) ([checksum](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/dargo-windows-x86_64.exe.sha256))
           
           **All platforms:**
-          - [dargo-${{ needs.build-linux.outputs.version }}-release.tar.gz](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/dargo-${{ needs.build-linux.outputs.version }}-release.tar.gz)
+          - [dargo-${{ needs.build-linux-x86_64.outputs.version }}-release.tar.gz](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/dargo-${{ needs.build-linux-x86_64.outputs.version }}-release.tar.gz)
           
           ### Installation
           
@@ -313,6 +371,6 @@ jobs:
           ```
         files: |
           release-assets/*
-          dargo-${{ needs.build-linux.outputs.version }}-release.tar.gz
+          dargo-${{ needs.build-linux-x86_64.outputs.version }}-release.tar.gz
         draft: false
         prerelease: false
