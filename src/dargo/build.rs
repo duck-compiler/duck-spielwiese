@@ -1,6 +1,12 @@
 use std::io::ErrorKind as IOErrKind;
 use std::path::{Path, PathBuf};
-use std::{env, fs, os};
+use std::{env, fs};
+
+#[cfg(target_os = "windows")]
+use std::os::windows::fs::symlink_dir;
+
+#[cfg(not(target_os = "windows"))]
+use std::os::unix::fs::symlink;
 
 use crate::DARGO_DOT_DIR;
 use crate::cli::git_cli::{self, GitCliErrKind};
@@ -109,8 +115,14 @@ pub fn build(build_args: &BuildArgs) -> Result<BuildOutput, (String, BuildErrKin
             current_dir.push(format!(".dargo/git/{module_name}/src"));
             let absolute_src_dir = current_dir;
 
-            // TODO: windows :(
-            os::unix::fs::symlink(absolute_src_dir, target_dir).map_err(|err| {
+            #[cfg(target_os = "windows")]
+            let result = symlink_dir(absolute_src_dir, target_dir);
+
+            #[cfg(not(target_os = "windows"))]
+            let result = symlink(absolute_src_dir, target_dir);
+
+
+            result.map_err(|err| {
                 (
                     format!("{}{} error creating symlink - {err}", Tag::IO, Tag::Err,),
                     BuildErrKind::IOErr(err.kind()),
