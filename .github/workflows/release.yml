@@ -201,10 +201,7 @@ jobs:
         export CXX=clang++
         export CC_x86_64_apple_darwin=clang
         export CXX_x86_64_apple_darwin=clang++
-        # Ensure build scripts use host compiler
-        export HOST_CC=clang
-        export HOST_CXX=clang++
-        # Build only for x86_64 target
+        # Build for x86_64 target
         cargo build --release --target x86_64-apple-darwin
 
     - name: Upload macOS x86_64 artifact
@@ -259,10 +256,7 @@ jobs:
         export CXX=clang++
         export CC_aarch64_apple_darwin=clang
         export CXX_aarch64_apple_darwin=clang++
-        # Ensure build scripts use host compiler
-        export HOST_CC=clang
-        export HOST_CXX=clang++
-        # Build only for ARM64 target
+        # Build for ARM64 target
         cargo build --release --target aarch64-apple-darwin
 
     - name: Upload macOS ARM64 artifact
