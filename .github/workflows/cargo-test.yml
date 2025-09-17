@@ -17,6 +17,8 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - uses: actions-rust-lang/setup-rust-toolchain@v1
+    - name: Install std library
+      run: chmod +x ./install_std.sh && ./install_std.sh
     - run: cargo test
 
   # Rust unit tests on Windows
@@ -26,6 +28,13 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - uses: actions-rust-lang/setup-rust-toolchain@v1
+    - name: Install std library
+      run: .\install_std.sh
+    - name: Fix Windows PDB error
+      run: |
+        # Set environment variable to avoid PDB issues
+        $env:CARGO_PROFILE_DEBUG_DEBUG = "1"
+        $env:CARGO_PROFILE_DEBUG_SPLIT_DEBUGINFO = "unpacked"
     - run: cargo test
 
   # Python integration tests on Ubuntu
@@ -35,6 +44,8 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - uses: actions-rust-lang/setup-rust-toolchain@v1
+    - name: Install std library
+      run: chmod +x ./install_std.sh && ./install_std.sh
     - name: Install Python
       uses: actions/setup-python@v4
       with:
@@ -51,6 +62,13 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - uses: actions-rust-lang/setup-rust-toolchain@v1
+    - name: Install std library
+      run: .\install_std.sh
+    - name: Fix Windows PDB error
+      run: |
+        # Set environment variable to avoid PDB issues
+        $env:CARGO_PROFILE_DEBUG_DEBUG = "1"
+        $env:CARGO_PROFILE_DEBUG_SPLIT_DEBUGINFO = "unpacked"
     - name: Install Python
       uses: actions/setup-python@v4
       with:
