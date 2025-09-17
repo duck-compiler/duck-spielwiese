@@ -433,7 +433,9 @@ def perform_tests():
         "skipped": 0
     }
 
-    compiler_path = build_and_move_cargo_binary("dargo");
+    # Use release build on Windows to avoid PDB issues
+    build_type = "release" if os.name == 'nt' else "debug"
+    compiler_path = build_and_move_cargo_binary("dargo", build_type);
 
     print(f"{COLOR_YELLOW}Duck Compiler is located at {COLOR_RESET}{compiler_path}{COLOR_RESET}")
 
