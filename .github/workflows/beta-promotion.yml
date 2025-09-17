@@ -55,8 +55,8 @@ jobs:
         cp nightly-artifacts/macos-aarch64/dargo beta-assets/dargo-macos-aarch64
         chmod +x beta-assets/dargo-macos-aarch64
         
-        # Copy Windows binary
-        cp nightly-artifacts/windows-x86_64/dargo.exe beta-assets/dargo-windows-x86_64.exe
+        # Copy Windows binary (disabled)
+        # cp nightly-artifacts/windows-x86_64/dargo.exe beta-assets/dargo-windows-x86_64.exe
 
     - name: Create checksums
       run: |
@@ -96,7 +96,7 @@ jobs:
           - [dargo-macos-aarch64](https://github.com/${{ github.repository }}/releases/download/${{ github.event.inputs.beta_version }}/dargo-macos-aarch64) ([checksum](https://github.com/${{ github.repository }}/releases/download/${{ github.event.inputs.beta_version }}/dargo-macos-aarch64.sha256))
           
           **Windows:**
-          - [dargo-windows-x86_64.exe](https://github.com/${{ github.repository }}/releases/download/${{ github.event.inputs.beta_version }}/dargo-windows-x86_64.exe) ([checksum](https://github.com/${{ github.repository }}/releases/download/${{ github.event.inputs.beta_version }}/dargo-windows-x86_64.exe.sha256))
+          - Windows builds are temporarily disabled
           
           **All platforms:**
           - [dargo-${{ github.event.inputs.beta_version }}-beta.tar.gz](https://github.com/${{ github.repository }}/releases/download/${{ github.event.inputs.beta_version }}/dargo-${{ github.event.inputs.beta_version }}-beta.tar.gz)
