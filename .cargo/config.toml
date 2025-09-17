@@ -7,8 +7,4 @@ linker = "aarch64-linux-gnu-gcc"
 [target.armv7-unknown-linux-gnueabihf]
 linker = "arm-linux-gnueabihf-gcc"
 
-[target.x86_64-apple-darwin]
-linker = "x86_64-apple-darwin-gcc"
-
-[target.aarch64-apple-darwin]
-linker = "aarch64-apple-darwin-gcc"
+# macOS targets use native clang - no custom linker needed
