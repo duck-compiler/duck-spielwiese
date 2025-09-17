@@ -1,43 +1,48 @@
-name: Stable Release
+name: Nightly Builds
 
 on:
-  push:
-    tags:
-      - 'v*'
+  schedule:
+    # Run every night at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch: # Allow manual triggering
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  # Shared job for common setup steps
+  # Setup job for version extraction
   setup:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.get_version.outputs.version }}
+      channel: ${{ steps.get_version.outputs.channel }}
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
 
-    - name: Extract version from tag or commit
+    - name: Extract version and channel
       id: get_version
       run: |
         if [[ $GITHUB_REF == refs/tags/* ]]; then
           VERSION=${GITHUB_REF#refs/tags/v}
+          CHANNEL="stable"
         else
-          VERSION="dev-${GITHUB_SHA:0:7}"
+          # For nightly builds, use date + short commit hash
+          DATE=$(date +%Y%m%d)
+          SHORT_SHA=${GITHUB_SHA:0:7}
+          VERSION="${DATE}-${SHORT_SHA}"
+          CHANNEL="nightly"
         fi
         echo "version=$VERSION" >> $GITHUB_OUTPUT
-        echo "Release version: $VERSION"
+        echo "channel=$CHANNEL" >> $GITHUB_OUTPUT
+        echo "Release version: $VERSION (channel: $CHANNEL)"
 
   # Linux builds
   build-linux-x86_64:
     runs-on: ubuntu-latest
     needs: setup
-    permissions:
-      contents: write
-      packages: write
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -77,9 +82,6 @@ jobs:
   build-linux-aarch64:
     runs-on: ubuntu-latest
     needs: setup
-    permissions:
-      contents: write
-      packages: write
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -129,9 +131,6 @@ jobs:
   build-linux-armv7:
     runs-on: ubuntu-latest
     needs: setup
-    permissions:
-      contents: write
-      packages: write
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -182,9 +181,6 @@ jobs:
   build-macos-x86_64:
     runs-on: macos-15
     needs: setup
-    permissions:
-      contents: write
-      packages: write
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -224,9 +220,6 @@ jobs:
   build-macos-aarch64:
     runs-on: macos-15
     needs: setup
-    permissions:
-      contents: write
-      packages: write
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -267,9 +260,6 @@ jobs:
   build-windows:
     runs-on: windows-2025
     needs: setup
-    permissions:
-      contents: write
-      packages: write
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -306,12 +296,11 @@ jobs:
         name: windows-x86_64
         path: target/x86_64-pc-windows-msvc/release/dargo.exe
 
-
-  # Create release for tag pushes
-  create-release:
+  # Create nightly release
+  create-nightly-release:
     needs: [setup, build-linux-x86_64, build-linux-aarch64, build-linux-armv7, build-macos-x86_64, build-macos-aarch64, build-windows]
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/')
+    if: ${{ needs.setup.outputs.channel == 'nightly' }}
     permissions:
       contents: write
       packages: write
@@ -326,72 +315,74 @@ jobs:
       with:
         path: artifacts
 
-    - name: Prepare release assets
+    - name: Prepare nightly release assets
       run: |
-        mkdir -p release-assets
+        mkdir -p nightly-assets
         
         # Copy Linux binaries
-        cp artifacts/linux-x86_64/dargo release-assets/dargo-linux-x86_64
-        chmod +x release-assets/dargo-linux-x86_64
+        cp artifacts/linux-x86_64/dargo nightly-assets/dargo-linux-x86_64
+        chmod +x nightly-assets/dargo-linux-x86_64
         
-        cp artifacts/linux-aarch64/dargo release-assets/dargo-linux-aarch64
-        chmod +x release-assets/dargo-linux-aarch64
+        cp artifacts/linux-aarch64/dargo nightly-assets/dargo-linux-aarch64
+        chmod +x nightly-assets/dargo-linux-aarch64
         
-        cp artifacts/linux-armv7/dargo release-assets/dargo-linux-armv7
-        chmod +x release-assets/dargo-linux-armv7
+        cp artifacts/linux-armv7/dargo nightly-assets/dargo-linux-armv7
+        chmod +x nightly-assets/dargo-linux-armv7
         
         # Copy macOS binaries
-        cp artifacts/macos-x86_64/dargo release-assets/dargo-macos-x86_64
-        chmod +x release-assets/dargo-macos-x86_64
+        cp artifacts/macos-x86_64/dargo nightly-assets/dargo-macos-x86_64
+        chmod +x nightly-assets/dargo-macos-x86_64
         
-        cp artifacts/macos-aarch64/dargo release-assets/dargo-macos-aarch64
-        chmod +x release-assets/dargo-macos-aarch64
+        cp artifacts/macos-aarch64/dargo nightly-assets/dargo-macos-aarch64
+        chmod +x nightly-assets/dargo-macos-aarch64
         
         # Copy Windows binary
-        cp artifacts/windows-x86_64/dargo.exe release-assets/dargo-windows-x86_64.exe
+        cp artifacts/windows-x86_64/dargo.exe nightly-assets/dargo-windows-x86_64.exe
 
     - name: Create checksums
       run: |
-        cd release-assets
+        cd nightly-assets
         for file in *; do
           sha256sum "$file" > "${file}.sha256"
         done
         cd ..
 
-    - name: Create release archive
+    - name: Create nightly archive
       run: |
-        cd release-assets
-        tar -czf ../dargo-${{ needs.setup.outputs.version }}-release.tar.gz *
+        cd nightly-assets
+        tar -czf ../dargo-${{ needs.setup.outputs.version }}-nightly.tar.gz *
         cd ..
 
-    - name: Create GitHub Release
+    - name: Create GitHub Nightly Release
       uses: softprops/action-gh-release@v1
       with:
-        tag_name: ${{ github.ref_name }}
-        name: Release ${{ needs.setup.outputs.version }}
+        tag_name: nightly-${{ needs.setup.outputs.version }}
+        name: Nightly Build ${{ needs.setup.outputs.version }}
         body: |
-          ## Dargo ${{ needs.setup.outputs.version }}
+          ## Dargo Nightly Build ${{ needs.setup.outputs.version }}
+          
+          ⚠️ **Warning**: This is a nightly build and may contain unstable features or bugs.
           
           ### Downloads
           
           **Linux:**
-          - [dargo-linux-x86_64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/dargo-linux-x86_64) ([checksum](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/dargo-linux-x86_64.sha256))
-          - [dargo-linux-aarch64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/dargo-linux-aarch64) ([checksum](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/dargo-linux-aarch64.sha256))
-          - [dargo-linux-armv7](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/dargo-linux-armv7) ([checksum](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/dargo-linux-armv7.sha256))
+          - [dargo-linux-x86_64](https://github.com/${{ github.repository }}/releases/download/nightly-${{ needs.setup.outputs.version }}/dargo-linux-x86_64) ([checksum](https://github.com/${{ github.repository }}/releases/download/nightly-${{ needs.setup.outputs.version }}/dargo-linux-x86_64.sha256))
+          - [dargo-linux-aarch64](https://github.com/${{ github.repository }}/releases/download/nightly-${{ needs.setup.outputs.version }}/dargo-linux-aarch64) ([checksum](https://github.com/${{ github.repository }}/releases/download/nightly-${{ needs.setup.outputs.version }}/dargo-linux-aarch64.sha256))
+          - [dargo-linux-armv7](https://github.com/${{ github.repository }}/releases/download/nightly-${{ needs.setup.outputs.version }}/dargo-linux-armv7) ([checksum](https://github.com/${{ github.repository }}/releases/download/nightly-${{ needs.setup.outputs.version }}/dargo-linux-armv7.sha256))
           
           **macOS:**
-          - [dargo-macos-x86_64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/dargo-macos-x86_64) ([checksum](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/dargo-macos-x86_64.sha256))
-          - [dargo-macos-aarch64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/dargo-macos-aarch64) ([checksum](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/dargo-macos-aarch64.sha256))
+          - [dargo-macos-x86_64](https://github.com/${{ github.repository }}/releases/download/nightly-${{ needs.setup.outputs.version }}/dargo-macos-x86_64) ([checksum](https://github.com/${{ github.repository }}/releases/download/nightly-${{ needs.setup.outputs.version }}/dargo-macos-x86_64.sha256))
+          - [dargo-macos-aarch64](https://github.com/${{ github.repository }}/releases/download/nightly-${{ needs.setup.outputs.version }}/dargo-macos-aarch64) ([checksum](https://github.com/${{ github.repository }}/releases/download/nightly-${{ needs.setup.outputs.version }}/dargo-macos-aarch64.sha256))
           
           **Windows:**
-          - [dargo-windows-x86_64.exe](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/dargo-windows-x86_64.exe) ([checksum](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/dargo-windows-x86_64.exe.sha256))
+          - [dargo-windows-x86_64.exe](https://github.com/${{ github.repository }}/releases/download/nightly-${{ needs.setup.outputs.version }}/dargo-windows-x86_64.exe) ([checksum](https://github.com/${{ github.repository }}/releases/download/nightly-${{ needs.setup.outputs.version }}/dargo-windows-x86_64.exe.sha256))
           
           **All platforms:**
-          - [dargo-${{ needs.setup.outputs.version }}-release.tar.gz](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/dargo-${{ needs.setup.outputs.version }}-release.tar.gz)
+          - [dargo-${{ needs.setup.outputs.version }}-nightly.tar.gz](https://github.com/${{ github.repository }}/releases/download/nightly-${{ needs.setup.outputs.version }}/dargo-${{ needs.setup.outputs.version }}-nightly.tar.gz)
           
           ### Installation
           
-          Download the appropriate binary for your platform and make it executable:
+          Download the appropriate binary for your platform:
           
           ```bash
           # Linux/macOS
@@ -410,7 +401,7 @@ jobs:
           sha256sum -c dargo-<platform>.sha256
           ```
         files: |
-          release-assets/*
-          dargo-${{ needs.setup.outputs.version }}-release.tar.gz
+          nightly-assets/*
+          dargo-${{ needs.setup.outputs.version }}-nightly.tar.gz
         draft: false
-        prerelease: false
+        prerelease: true

@@ -1,0 +1,132 @@
+name: Beta Promotion
+
+on:
+  workflow_dispatch:
+    inputs:
+      nightly_version:
+        description: 'Nightly version to promote to beta (e.g., 20241215-abc1234)'
+        required: true
+        type: string
+      beta_version:
+        description: 'Beta version number (e.g., 0.2.0-beta.1)'
+        required: true
+        type: string
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  promote-to-beta:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Download nightly artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: nightly-artifacts
+        # This would need to be implemented to download from a specific nightly release
+        # For now, we'll assume the artifacts are available locally
+
+    - name: Prepare beta release assets
+      run: |
+        mkdir -p beta-assets
+        
+        # Copy Linux binaries
+        cp nightly-artifacts/linux-x86_64/dargo beta-assets/dargo-linux-x86_64
+        chmod +x beta-assets/dargo-linux-x86_64
+        
+        cp nightly-artifacts/linux-aarch64/dargo beta-assets/dargo-linux-aarch64
+        chmod +x beta-assets/dargo-linux-aarch64
+        
+        cp nightly-artifacts/linux-armv7/dargo beta-assets/dargo-linux-armv7
+        chmod +x beta-assets/dargo-linux-armv7
+        
+        # Copy macOS binaries
+        cp nightly-artifacts/macos-x86_64/dargo beta-assets/dargo-macos-x86_64
+        chmod +x beta-assets/dargo-macos-x86_64
+        
+        cp nightly-artifacts/macos-aarch64/dargo beta-assets/dargo-macos-aarch64
+        chmod +x beta-assets/dargo-macos-aarch64
+        
+        # Copy Windows binary
+        cp nightly-artifacts/windows-x86_64/dargo.exe beta-assets/dargo-windows-x86_64.exe
+
+    - name: Create checksums
+      run: |
+        cd beta-assets
+        for file in *; do
+          sha256sum "$file" > "${file}.sha256"
+        done
+        cd ..
+
+    - name: Create beta archive
+      run: |
+        cd beta-assets
+        tar -czf ../dargo-${{ github.event.inputs.beta_version }}-beta.tar.gz *
+        cd ..
+
+    - name: Create GitHub Beta Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ github.event.inputs.beta_version }}
+        name: Beta Release ${{ github.event.inputs.beta_version }}
+        body: |
+          ## Dargo Beta Release ${{ github.event.inputs.beta_version }}
+          
+          🧪 **Beta Release**: This is a beta version for testing. Please report any issues you encounter.
+          
+          **Promoted from nightly**: ${{ github.event.inputs.nightly_version }}
+          
+          ### Downloads
+          
+          **Linux:**
+          - [dargo-linux-x86_64](https://github.com/${{ github.repository }}/releases/download/${{ github.event.inputs.beta_version }}/dargo-linux-x86_64) ([checksum](https://github.com/${{ github.repository }}/releases/download/${{ github.event.inputs.beta_version }}/dargo-linux-x86_64.sha256))
+          - [dargo-linux-aarch64](https://github.com/${{ github.repository }}/releases/download/${{ github.event.inputs.beta_version }}/dargo-linux-aarch64) ([checksum](https://github.com/${{ github.repository }}/releases/download/${{ github.event.inputs.beta_version }}/dargo-linux-aarch64.sha256))
+          - [dargo-linux-armv7](https://github.com/${{ github.repository }}/releases/download/${{ github.event.inputs.beta_version }}/dargo-linux-armv7) ([checksum](https://github.com/${{ github.repository }}/releases/download/${{ github.event.inputs.beta_version }}/dargo-linux-armv7.sha256))
+          
+          **macOS:**
+          - [dargo-macos-x86_64](https://github.com/${{ github.repository }}/releases/download/${{ github.event.inputs.beta_version }}/dargo-macos-x86_64) ([checksum](https://github.com/${{ github.repository }}/releases/download/${{ github.event.inputs.beta_version }}/dargo-macos-x86_64.sha256))
+          - [dargo-macos-aarch64](https://github.com/${{ github.repository }}/releases/download/${{ github.event.inputs.beta_version }}/dargo-macos-aarch64) ([checksum](https://github.com/${{ github.repository }}/releases/download/${{ github.event.inputs.beta_version }}/dargo-macos-aarch64.sha256))
+          
+          **Windows:**
+          - [dargo-windows-x86_64.exe](https://github.com/${{ github.repository }}/releases/download/${{ github.event.inputs.beta_version }}/dargo-windows-x86_64.exe) ([checksum](https://github.com/${{ github.repository }}/releases/download/${{ github.event.inputs.beta_version }}/dargo-windows-x86_64.exe.sha256))
+          
+          **All platforms:**
+          - [dargo-${{ github.event.inputs.beta_version }}-beta.tar.gz](https://github.com/${{ github.repository }}/releases/download/${{ github.event.inputs.beta_version }}/dargo-${{ github.event.inputs.beta_version }}-beta.tar.gz)
+          
+          ### Installation
+          
+          Download the appropriate binary for your platform:
+          
+          ```bash
+          # Linux/macOS
+          chmod +x dargo-<platform>
+          sudo mv dargo-<platform> /usr/local/bin/dargo
+          
+          # Windows
+          # Move dargo-windows-x86_64.exe to a directory in your PATH and rename to dargo.exe
+          ```
+          
+          ### Verification
+          
+          Verify the integrity of your download using the provided checksums:
+          
+          ```bash
+          sha256sum -c dargo-<platform>.sha256
+          ```
+          
+          ### Feedback
+          
+          Please report any issues or bugs you encounter with this beta release.
+        files: |
+          beta-assets/*
+          dargo-${{ github.event.inputs.beta_version }}-beta.tar.gz
+        draft: false
+        prerelease: true
