@@ -194,14 +194,9 @@ jobs:
         echo "version=$VERSION" >> $GITHUB_OUTPUT
         echo "Release version: $VERSION"
 
-    - name: Build for macOS (x86_64)
+    - name: Build for macOS (x86_64) - Native
       run: |
-        # Set up environment for x86_64 build
-        export CC=clang
-        export CXX=clang++
-        export CC_x86_64_apple_darwin=clang
-        export CXX_x86_64_apple_darwin=clang++
-        # Build for x86_64 target
+        # Build natively for x86_64 (no cross-compilation)
         cargo build --release --target x86_64-apple-darwin
 
     - name: Upload macOS x86_64 artifact
@@ -249,14 +244,9 @@ jobs:
         echo "version=$VERSION" >> $GITHUB_OUTPUT
         echo "Release version: $VERSION"
 
-    - name: Build for macOS (ARM64)
+    - name: Build for macOS (ARM64) - Native
       run: |
-        # Set up environment for ARM64 build
-        export CC=clang
-        export CXX=clang++
-        export CC_aarch64_apple_darwin=clang
-        export CXX_aarch64_apple_darwin=clang++
-        # Build for ARM64 target
+        # Build natively for ARM64 (no cross-compilation)
         cargo build --release --target aarch64-apple-darwin
 
     - name: Upload macOS ARM64 artifact
