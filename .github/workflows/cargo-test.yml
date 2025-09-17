@@ -1,4 +1,4 @@
-name: Rust
+name: Tests
 
 on:
   push:
@@ -10,11 +10,52 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  test:
-    name: cargo test
+  # Rust unit tests on Ubuntu
+  rust-test-ubuntu:
+    name: Rust Tests (Ubuntu)
     runs-on: ubuntu-latest
-
     steps:
     - uses: actions/checkout@v4
     - uses: actions-rust-lang/setup-rust-toolchain@v1
     - run: cargo test
+
+  # Rust unit tests on Windows
+  rust-test-windows:
+    name: Rust Tests (Windows)
+    runs-on: windows-2025
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions-rust-lang/setup-rust-toolchain@v1
+    - run: cargo test
+
+  # Python integration tests on Ubuntu
+  python-test-ubuntu:
+    name: Python Tests (Ubuntu)
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions-rust-lang/setup-rust-toolchain@v1
+    - name: Install Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    - name: Run Python tests
+      run: |
+        cd tests
+        python run_tests.py --cicd
+
+  # Python integration tests on Windows
+  python-test-windows:
+    name: Python Tests (Windows)
+    runs-on: windows-2025
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions-rust-lang/setup-rust-toolchain@v1
+    - name: Install Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    - name: Run Python tests
+      run: |
+        cd tests
+        python run_tests.py --cicd
