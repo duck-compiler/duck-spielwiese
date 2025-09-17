@@ -33,9 +33,10 @@ jobs:
       run: .\install_std.sh
     - name: Fix Windows PDB error
       run: |
-        # Set environment variable to avoid PDB issues
-        $env:CARGO_PROFILE_DEBUG_DEBUG = "1"
-        $env:CARGO_PROFILE_DEBUG_SPLIT_DEBUGINFO = "unpacked"
+        # Disable debug symbols to avoid PDB issues
+        $env:CARGO_PROFILE_DEBUG_DEBUG = "false"
+        $env:CARGO_PROFILE_DEBUG_SPLIT_DEBUGINFO = "none"
+        $env:CARGO_PROFILE_DEBUG_STRIP = "symbols"
     - run: cargo test
 
   # Python integration tests on Ubuntu
@@ -67,9 +68,10 @@ jobs:
       run: .\install_std.sh
     - name: Fix Windows PDB error
       run: |
-        # Set environment variable to avoid PDB issues
-        $env:CARGO_PROFILE_DEBUG_DEBUG = "1"
-        $env:CARGO_PROFILE_DEBUG_SPLIT_DEBUGINFO = "unpacked"
+        # Disable debug symbols to avoid PDB issues
+        $env:CARGO_PROFILE_DEBUG_DEBUG = "false"
+        $env:CARGO_PROFILE_DEBUG_SPLIT_DEBUGINFO = "none"
+        $env:CARGO_PROFILE_DEBUG_STRIP = "symbols"
     - name: Install Python
       uses: actions/setup-python@v4
       with:
